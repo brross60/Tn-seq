@@ -3,7 +3,7 @@
 usage () {
   echo "usage: $0 [-i <IR seq>] [-g <path to genome files>] <pfx> "
   echo "Required parameters:"
-  echo "-i     This is your IR sequence"
+  echo "-i     This is your IR sequence do not include the TA"
   echo "-g     The location of the genome you're using (PA14)"
   echo "must load these modules prior to using script: 
         python/2.7, cutadapt/1.8.1, bowtie2/2.3.2"
@@ -83,7 +83,8 @@ cat $PREFIX.sam | grep -v '^@' | awk -F "\t" '(and($2, 0x4) != 0x4)' | sort -u -
 echo "Number of reads mapping at high enough score:" >> $PREFIX-TnSeq.txt
 cat $PREFIX-mapped.sam | wc -l >> $PREFIX-TnSeq.txt
 echo "$PREFIX: Tallying mapping results..."
-grep -v '^@' $PREFIX-mapped.sam | awk -F "\t" 'and($2, 0x100) != 0x100 {if (and($2, 0x10) != 0x10) print $4; else print $4+length($10)}' | grep '[0-9]' | sort | uniq -c | sort -n -r > $PREFIX-sites.txt
+#note reverse reads (flag 16) take the start site of the read add the lentgth but then removed 2. The last two bp are the TA and TA sites are denoted where the TA starts so length-2 tells you were the reverse read TA is.
+grep -v '^@' $PREFIX-mapped.sam | awk -F "\t" 'and($2, 0x100) != 0x100 {if (and($2, 0x10) != 0x10) print $4; else print $4+length($10)-2}' | grep '[0-9]' | sort | uniq -c | sort -n -r > $PREFIX-sites.txt
 echo "Number of insertion sites identified:" >> $PREFIX-TnSeq.txt
 wc -l $PREFIX-sites.txt >> $PREFIX-TnSeq.txt
 echo "Most frequent sites:" >> $PREFIX-TnSeq.txt
