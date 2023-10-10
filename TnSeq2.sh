@@ -72,18 +72,26 @@ egrep -c '^@' $PREFIX.fastq >> $PREFIX-TnSeq.txt
 echo "$PREFIX: Searching for reads with an IR..."
 echo "$PREFIX: Removing primer and IR sequences..."
 #Modify the -M flag depending on you sequence leght. This is currently based on 75 bp reads.
-cutadapt -g $IR -M 45 -m 20 --discard-untrimmed -j 16 -o $PREFIX.trim.fastq $PREFIX.fastq >$PREFIX.cutadapt_log.txt
+cutadapt -g $IR -M 55 -m 20 --discard-untrimmed -j 16 -o $PREFIX.trim.fastq $PREFIX.fastq >$PREFIX.cutadapt_log.txt
 
 # Map and convert - feel free to change bowtie2 parameters yourself
 echo "$PREFIX: Mapping with Bowtie2..."
 echo "Bowtie2 report:" >> $PREFIX-TnSeq.txt
-bowtie2 --end-to-end -p 16 -a -x $GENOME -U $PREFIX.trim.fastq -S $PREFIX.sam 2>> $PREFIX-TnSeq.txt
+bowtie2 --end-to-end --very-sensistive -p 16 -a -x $GENOME -U $PREFIX.trim.fastq -S $PREFIX.sam 2>> $PREFIX-TnSeq.txt
 grep '^@' $PREFIX.sam > $PREFIX-mapped.sam
 cat $PREFIX.sam | grep -v '^@' | awk -F "\t" '(and($2, 0x4) != 0x4)' | sort -u -k1,1 >> $PREFIX-mapped.sam
+
 echo "Number of reads mapping at high enough score:" >> $PREFIX-TnSeq.txt
 cat $PREFIX-mapped.sam | wc -l >> $PREFIX-TnSeq.txt
+
+# Tallying mapping results (corrected the calls for reads mapped to the reverse strand)
+echo "$PREFIX: Tallying mapping results with directionaity..."
+#if its forward strand print start site (before TA), if its reverse print start plus length -2 because TA are designated before
+grep -v '^@'  $PREFIX-mapped.sam | awk -F "\t" 'and($2, 0x100) != 0x100 {if (and($2, 0x10) != 0x10) print $4" "$2; else print $4+length($10)-2" "$2}' | grep '[0-9]' | sort | uniq -c | sort -n -r > $PREFIX-directional-sites.txt
+
 echo "$PREFIX: Tallying mapping results..."
-grep -v '^@' $PREFIX-mapped.sam | awk -F "\t" 'and($2, 0x100) != 0x100 {if (and($2, 0x10) != 0x10) print $4; else print $4+length($10)}' | grep '[0-9]' | sort | uniq -c | sort -n -r > $PREFIX-sites.txt
+grep -v '^@' $PREFIX-mapped.sam | awk -F "\t" 'and($2, 0x100) != 0x100 {if (and($2, 0x10) != 0x10) print $4; else print $4+length($10)-2}' | grep '[0-9]' | sort | uniq -c | sort -n -r > $PREFIX-sites.txt
+
 echo "Number of insertion sites identified:" >> $PREFIX-TnSeq.txt
 wc -l $PREFIX-sites.txt >> $PREFIX-TnSeq.txt
 echo "Most frequent sites:" >> $PREFIX-TnSeq.txt
@@ -93,7 +101,9 @@ head -10 $PREFIX-sites.txt >> $PREFIX-TnSeq.txt
 echo "$PREFIX: Cleaning up..."
 mkdir $PREFIX 2> /dev/null
 mv $PREFIX.cutadapt_log.txt $PREFIX/
+mv $PREFIX.trim.fastq $PREFIX/
 mv $PREFIX-TnSeq.txt $PREFIX/
 mv $PREFIX.sam $PREFIX/
 mv $PREFIX-mapped.sam $PREFIX/
+mv $PREFIX-directional-sites.txt
 mv $PREFIX-sites.txt $PREFIX/
