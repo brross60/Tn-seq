@@ -17,7 +17,7 @@ Then two different downstream anlayses can be done. TnSeqDESeq2_DifferentialsAna
 
 ## Usage: 
 
-./TnSeq2.sh -i inverted_repeat_sequencince -g path/genome-index filename
+./TnSeq3-2.sh -i inverted_repeat_sequencinc -g path/genome-index filename
 
 
 ## Arguments:
