@@ -85,8 +85,8 @@ echo "Number of reads mapping at high enough score:" >> $PREFIX-TnSeq.txt
 cat $PREFIX-mapped.sam | wc -l >> $PREFIX-TnSeq.txt
 
 # Tallying mapping results (non-mariner)
-echo "$PREFIX: Tallying mapping results with directionaity..."
-grep -v '^@'  $PREFIX-mapped.sam | awk -F "\t" 'and($2, 0x100) != 0x100 {if (and($2, 0x10) != 0x10) print $4" "$2; else print $4+length($10)" "$2}' | grep '[0-9]' | sort | uniq -c | sort -n -r > $PREFIX-directional-sites.txt
+#echo "$PREFIX: Tallying mapping results with directionaity..."
+#grep -v '^@'  $PREFIX-mapped.sam | awk -F "\t" 'and($2, 0x100) != 0x100 {if (and($2, 0x10) != 0x10) print $4" "$2; else print $4+length($10)" "$2}' | grep '[0-9]' | sort | uniq -c | sort -n -r > $PREFIX-directional-sites.txt
 
 echo "$PREFIX: Tallying mapping results..."
 grep -v '^@' $PREFIX-mapped.sam | awk -F "\t" 'and($2, 0x100) != 0x100 {if (and($2, 0x10) != 0x10) print $4; else print $4+length($10)}' | grep '[0-9]' | sort | uniq -c | sort -n -r > $PREFIX-sites.txt
