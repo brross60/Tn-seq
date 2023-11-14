@@ -70,8 +70,9 @@ egrep -c '^@' $PREFIX.fastq >> $PREFIX-TnSeq.txt
 # IRs
 echo "$PREFIX: Searching for reads with an IR..."
 echo "$PREFIX: Removing primer and IR sequences..."
+# can add -a GGGGGG -n 2 to remove 3' poly G if you choose to
 #Modify the -M flag depending on you sequence leght. This is currently based on 55 bp reads. 200bp - adaptors
-cutadapt -g $IR -a GGGGGG -n 2 -m 20 -M 55 --discard-untrimmed -j 16 -o $PREFIX.trim.fastq $PREFIX.fastq >$PREFIX.cutadapt_log.txt
+cutadapt -g $IR -m 20 -M 55 --discard-untrimmed -j 16 -o $PREFIX.trim.fastq $PREFIX.fastq >$PREFIX.cutadapt_log.txt
 
 # Map and convert - feel free to change bowtie2 parameters yourself
 echo "$PREFIX: Mapping with Bowtie2..."
