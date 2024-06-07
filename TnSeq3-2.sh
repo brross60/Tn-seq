@@ -77,7 +77,7 @@ cutadapt -g $IR -M 55 -m 20 --discard-untrimmed -j 16 -o $PREFIX.trim.fastq $PRE
 # Map and convert - feel free to change bowtie2 parameters yourself
 echo "$PREFIX: Mapping with Bowtie2..."
 echo "Bowtie2 report:" >> $PREFIX-TnSeq.txt
-bowtie2 --end-to-end --very-sensistive -p 16 -a -x $GENOME -U $PREFIX.trim.fastq -S $PREFIX.sam 2>> $PREFIX-TnSeq.txt
+bowtie2 --end-to-end --very-sensitive -p 16 -a -x $GENOME -U $PREFIX.trim.fastq -S $PREFIX.sam 2>> $PREFIX-TnSeq.txt
 grep '^@' $PREFIX.sam > $PREFIX-mapped.sam
 cat $PREFIX.sam | grep -v '^@' | awk -F "\t" '(and($2, 0x4) != 0x4)' | sort -u -k1,1 >> $PREFIX-mapped.sam
 
