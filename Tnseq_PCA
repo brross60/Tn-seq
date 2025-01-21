@@ -1,124 +1,40 @@
-filenames <- dir(pattern = "-sites.txt")
-conditions <- sub("-sites.txt", "", filenames) #sub(pattern, replacement, x)
-filenames
-conditions
-##################################################################################################################
-#Read in GFF file
-#pfx means prefix and will be added to the input and output file name "smooth 1= first file in"
-ctrl_pfx = "NO_tnseq"
-ctrl_pfx
-ctrl_reps = 20
-ctrl_reps
-gff_pfx = "GCF_000069185.1_ASM6918v1_genomic_combined.endtrunc_1"
-gff_pfx
-#tell R where your gff file is stored
-#gff_dir = "/Volumes/Turtle/Bioinformatics/Analysis.Tnseq/Attempt.3/Currentwork/condataonated_fna/"
-#gff_dir
-out_pfx = "sNO_rNO_sIN_rIN_NOtnseq_012125"
-out_pfx
-
-# make file called "QC_output"
-write(out_pfx, file = paste("./QC_output/", paste(out_pfx, "_stats.txt", sep=""), sep=""))
-
-#Read in file names
-#put everything before teh -sites
-in_files = c("MW83-MAB-SB-NO_S2","MW102-Sno1_S4", "MW102-Sno2_S5","MW102-Sno3_S6","MW102-SnoA_S3",
-             "MW83-MAB-RB-NO_S3","MW102-Rno1_S8","MW102-Rno2_S9","MW102-Rno3_S10","MW102-RnoA_S7",
-             "MW79-MAB-SE-in_S7","MW111-S1-In_S12","MW111-S2-In_S13","MW129-S3-Input_S7","MW111-Sa-In_S11",
-             "MW79-MAB-RE-in_S8","MW130-RB-Input_S12","MW129-R1-Input_S3","MW129-R2-Input_S4","MW129-R3-Input_S5")
-# Read in sites files
-
-library(dplyr)
-sites <- data.frame(Pos=c(0)) 
-for (i in 1:length(in_files)) {
-  newsites <- read.table(paste(paste(in_files[i], sep="/"), "sites.txt", sep="-")) 
-  colnames(newsites) <- c(paste("V", i, sep=""), "Pos")
-  #newsites <- tail(newsites, n=-to_trim) #uncomment if to_trim=0
-  newsites <- arrange(newsites,Pos)
-  sites <- merge(sites, newsites, all=T) 
-}
-sites <- tail(sites, n=-1)
-sites[is.na(sites)] <- 0
-
-# Initialize the list of genes, determine genome length
-#setwd(gff_dir)
-#can add column names if your gff has extra columns
-gff <- read.delim(file=paste(gff_pfx, ".gff", sep=""), sep="\t", fill=TRUE, header=FALSE, col.names = c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "att"))
-#setwd(wd)
-print(head(gff))
-gff <- tail(gff, n=-7) #if gff has extra info at top
-gff <- gff[(gff$feature=="gene"),]
-print(head(gff))
-
-
-
 library(DESeq2)
-library(tidyverse)
-colData <- data.frame(c(rep(ctrl_pfx, ctrl_reps)), condition = rep("untreated", ctrl_reps))
-sitescds <- sites[,2:length(sites)] %>% round %>% DESeqDataSetFromMatrix(colData = colData, design= ~ 1) #makes data in deseq dataframe
-
-#Output the normalized counts Multiple options
-
-#Output the estimateSizeFactors normalized counts
-sitescds <- estimateSizeFactors(sitescds) #need this if normalize in next line =T
-counts.norm <- counts(sitescds, normalized=F) #norm=T implements estimateSizeFactors normalization
-rownames(counts.norm) <- sites$Pos# says that the row names will be the sites pos
-counts.df <- data.frame(counts.norm)#turns vetor into a dataframe
-
-#Output the CPM normalized counts
-#library(edgeR)
-#sitescds3 <-cpm(sitescds, normalizes.lib.sizes=TRUE,log=FALSE)
-#rownames(sitescds3) <- sites$Pos
-#counts.df <- data.frame(sitescds3)
-
-controlreps <- 0
-for (c in 1:length(counts.df[1,])) {
-  gff[,c+9] <- rep(1,length(gff[,1]))
-  controlreps <- controlreps + 1
-  colnames(gff)[c+9] <- paste(ctrl_pfx, controlreps, sep=".")
+library(ggplot2)
+genes <- data.frame(id = rep("", length(gff[,1]), stringsAsFactors = FALSE))
+genes$id <- as.character(genes$id)
+for (i in 1:length(gff[,1])) {
+  genes$id[i] <- strsplit(grep("locus_tag",strsplit(as.character(gff$att[i]),";")[[1]], value=T),"=")[[1]][2]
 }
 
-# Output gene boundaries and read counts per Tn site for Perl binning script
-print("Binning read counts by gene boundaries")
-boundariesfile <- paste("./QC_Output/", paste(out_pfx, ".boundaries.tsv", sep=""), sep="")
-sitecountsfile <- paste("./QC_Output/", paste(out_pfx, ".sitecounts.tsv", sep=""), sep="")
-write.table(gff[,c(4,5, 10:length(gff))], boundariesfile, quote=FALSE, sep="\t", row.names=F)
-write.table(counts.df, sitecountsfile, quote=FALSE, sep="\t", row.names=T)
+finalcounts <- cbind(genes,genecounts)
+rownames(finalcounts) <-finalcounts[,1]
+finalcounts <-finalcounts[,-1]
+finalcounts <- as.data.frame.matrix(finalcounts)
+sample_info <-  data.frame(condition=c(rep("sNO", 5),
+                                       rep("rNO", 5),
+                                       rep("sIn", 5),
+                                       rep("rIn", 5)))
 
-#Use perl script to bin sites into genes
-#You will need to change the line below to where your TnGeneBin.pl script is kept or place it in the file where your input files are at
-#
-system(paste("perl TnGeneBin.pl", boundariesfile, sitecountsfile))        
-#gets rid of gene ID columns so they dont mess up further analysis 
-genecounts <- read.table(paste(boundariesfile, "out", sep="."), header=T)[,-c(1,2)]
-#keeps first two columns for viewing 
-genecounts2 <- read.table(paste(boundariesfile, "out", sep="."), header=T)
-#both samples hits per gene
-write.table(genecounts2, "All_sitecountsboundaries.tsv", quote=FALSE, sep="\t", row.names=F)
-numsites <- read.table(paste(boundariesfile, "numsites.out", sep="."), header=T)[,-c(1,2)]
-numsites <- read.table(paste(boundariesfile, "numsites.out", sep="."), header=T)[,-c(1,2)]
+dds <- DESeqDataSetFromMatrix(countData = finalcounts , colData= sample_info, design = ~condition)
+vst <- varianceStabilizingTransformation(dds, blind = F)
+logdata <- rlog(dds)
+pcaData <- plotPCA(logdata, returnData=TRUE)
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+ggplot(pcaData, aes(x=PC1, y=PC2, color=condition)) +
+  geom_point(size=3) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  coord_fixed()
+ggsave("NO_logdata.tiff", dpi=200, device = "tiff") 
 
-	##PCA
-	library(DESeq2)
-	finalcounts <- cbind(genes,genecounts)
-	rownames(finalcounts) <-finalcounts[,1]
-	finalcounts <-finalcounts[,-1]
-	finalcounts <- as.data.frame.matrix(finalcounts)
-	sample_info <-  data.frame(condition=c(rep("Smooth_abscess", 6),
-	                                       rep("Rough_abscess", 6)))
-	
-	dds <- DESeqDataSetFromMatrix(countData = finalcounts , colData= sample_info, design = ~condition)
-	
-	log <- rlog(dds)
-	
-	pcaData <- plotPCA(log, returnData=TRUE)
-	percentVar <- round(100 * attr(pcaData, "percentVar"))
-	ggplot(pcaData, aes(x=PC1, y=PC2, color=condition)) +
-	  geom_point(size=3) +
-	  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
-	  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
-	  coord_fixed()
-	ggsave("Abscess_S_R.tiff", dpi=200, device = "tiff") 
-	# pull PCA values form dds
-	write.csv(pcaData,"Abscess_S_R.csv")
+vst <- varianceStabilizingTransformation(dds, blind = F)
+pcaData <- plotPCA(vst, returnData=TRUE)
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+ggplot(pcaData, aes(x=PC1, y=PC2, color=condition)) +
+  geom_point(size=3) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  coord_fixed()
+ggsave("NO_vst.tiff", dpi=200, device = "tiff") 
+
 	
