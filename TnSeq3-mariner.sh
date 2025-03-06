@@ -16,6 +16,7 @@ usage () {
   echo ""
   echo "Example:"
   echo "$0 -i TATAAGAGTCAG -g $HOME/ref_genome/PA14/PA14 condition1"
+  echo "$0 -i AGCCAACCTGT -g $HOME/ref_genome/cMABATCC19977 condition1"
 }
 
 # Read in the important options
